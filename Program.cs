@@ -31,7 +31,7 @@ app.MapGet("/", async context =>
 {
     context.Response.ContentType = "text/html; charset=utf-8";
     var host = context.Request.Host.Host;
-    bool isBrokenSlot = host.Contains("-broken", StringComparison.OrdinalIgnoreCase);
+    bool isBrokenSlot = host.Contains("broken", StringComparison.OrdinalIgnoreCase);
 
     // Choose random weather for initial page load
     var rng = new Random();
@@ -140,8 +140,8 @@ app.MapGet("/", async context =>
     // Simulate memory exhaustion for the broken slot (AFTER writing HTML!)
     if (isBrokenSlot)
     {
-        await Task.Delay(1200);
-        throw new Exception("Simulated memory exhaustion: Deliberate crash for demo purposes.");
+        void CrashStack() => CrashStack(); // Infinite recursion
+        if (isBrokenSlot) CrashStack();
     }
 
     await context.Response.WriteAsync("<div style='color:green'>Memory bug did not work!</div>");
