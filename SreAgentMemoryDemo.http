@@ -1,0 +1,6 @@
+@SreAgentMemoryDemo_HostAddress = http://localhost:5121
+
+GET {{SreAgentMemoryDemo_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
