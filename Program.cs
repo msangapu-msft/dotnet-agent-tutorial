@@ -140,16 +140,12 @@ app.MapGet("/", async context =>
     // Simulate memory exhaustion for the broken slot (AFTER writing HTML!)
     if (isBrokenSlot)
     {
-        await Task.Delay(1100); // Let browser render the warning
-        List<byte[]> memoryLeak = new();
-        while (true)
-        {
-            memoryLeak.Add(new byte[1024 * 1024]);
-        }
-
-        // In the unlikely event the process doesn't crash
-        await context.Response.WriteAsync("<div style='color:green'>Memory bug did not work!</div>");
+        await Task.Delay(1200);
+        throw new Exception("Simulated memory exhaustion: Deliberate crash for demo purposes.");
     }
+
+    await context.Response.WriteAsync("<div style='color:green'>Memory bug did not work!</div>");
+    
 });
 
 app.Run();
