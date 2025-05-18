@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
@@ -28,16 +29,9 @@ string[] quotes = new[]
 
 app.MapGet("/", async context =>
 {
-    // Simulate memory exhaustion for the broken slot
+    context.Response.ContentType = "text/html; charset=utf-8";
     var host = context.Request.Host.Host;
-    if (host.Contains("-broken", StringComparison.OrdinalIgnoreCase))
-    {
-        List<byte[]> memoryLeak = new();
-        for (int i = 0; i < 50_000; i++)
-        {
-            memoryLeak.Add(new byte[1024 * 1024]);
-        }
-    }
+    bool isBrokenSlot = host.Contains("-broken", StringComparison.OrdinalIgnoreCase);
 
     // Choose random weather for initial page load
     var rng = new Random();
@@ -47,10 +41,7 @@ app.MapGet("/", async context =>
     string icon = icons[idx];
     string quote = quotes[rng.Next(quotes.Length)];
 
-    // Set the Content-Type header to include UTF-8!
-    context.Response.ContentType = "text/html; charset=utf-8";
-
-    // Write HTML + JS for interactivity (with meta charset for full safety)
+    // Start HTML
     await context.Response.WriteAsync($@"
 <!DOCTYPE html>
 <html>
@@ -89,6 +80,17 @@ app.MapGet("/", async context =>
             font-size: 1.2em;
             color: #008080;
         }}
+        .warning {{
+            margin-top: 30px;
+            color: #b91c1c;
+            font-weight: bold;
+            font-size: 1.3em;
+        }}
+        .slotnote {{
+            margin-top: 12px;
+            color: #ad6800;
+            font-size: 1em;
+        }}
         button {{
             margin-top: 30px;
             background: #2563eb;
@@ -112,6 +114,8 @@ app.MapGet("/", async context =>
         <div class='summary' id='summary'>{summary}</div>
         <div class='quote' id='quote'>{quote}</div>
         <button onclick='refreshWeather()'>Refresh</button>
+        {(isBrokenSlot ? "<div class='warning'>BROKEN SLOT: Simulating memory exhaustion!<br/>Page may crash.</div>" : "")}
+        {(isBrokenSlot ? "<div class='slotnote'>Note: For the demo to work, your deployment slot <b>MUST</b> be named <code>broken</code>!</div>" : "")}
     </div>
     <script>
         const summaries = {JsonSerializer.Serialize(summaries)};
@@ -129,6 +133,22 @@ app.MapGet("/", async context =>
 </body>
 </html>
     ");
+
+    // Flush response so user sees it before crash
+    await context.Response.Body.FlushAsync();
+
+    // Simulate memory exhaustion for the broken slot (AFTER writing HTML!)
+    if (isBrokenSlot)
+    {
+        await Task.Delay(1100); // Let browser render the warning
+        List<byte[]> memoryLeak = new();
+        for (int i = 0; i < 50_000; i++)
+        {
+            memoryLeak.Add(new byte[1024 * 1024]); // Allocate 1MB each (~50GB)
+        }
+        // In the unlikely event the process doesn't crash
+        await context.Response.WriteAsync("<div style='color:green'>Memory bug did not work!</div>");
+    }
 });
 
 app.Run();
