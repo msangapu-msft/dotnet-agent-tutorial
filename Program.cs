@@ -115,7 +115,7 @@ app.MapGet("/", async context =>
         <div class='quote' id='quote'>{quote}</div>
         <button onclick='refreshWeather()'>Refresh</button>
         {(isBrokenSlot ? "<div class='warning'>BROKEN SLOT: Simulating memory exhaustion!<br/>Page may crash.</div>" : "")}
-        {(isBrokenSlot ? "<div class='slotnote'>Note: For the demo to work, your deployment slot <b>MUST</b> be named <code>broken</code>!</div>" : "")}
+        <div class='slotnote'>Note: For the demo to work, your deployment slot <b>MUST</b> be named <code>broken</code>!</div>
     </div>
     <script>
         const summaries = {JsonSerializer.Serialize(summaries)};
@@ -142,10 +142,11 @@ app.MapGet("/", async context =>
     {
         await Task.Delay(1100); // Let browser render the warning
         List<byte[]> memoryLeak = new();
-        for (int i = 0; i < 50_000; i++)
+        while (true)
         {
-            memoryLeak.Add(new byte[1024 * 1024]); // Allocate 1MB each (~50GB)
+            memoryLeak.Add(new byte[1024 * 1024]);
         }
+
         // In the unlikely event the process doesn't crash
         await context.Response.WriteAsync("<div style='color:green'>Memory bug did not work!</div>");
     }
