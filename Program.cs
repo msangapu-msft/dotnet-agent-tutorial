@@ -147,6 +147,6 @@ app.MapGet("/weatherforecast/json", () =>
     return Results.Json(forecast);
 });
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary);
-
 app.Run();
+
+record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary);
