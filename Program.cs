@@ -87,10 +87,10 @@ app.MapGet("/weatherforecast", (HttpContext context) =>
 })
 .WithName("GetWeatherForecast");
 
-// The WeatherForecast record must be defined
+app.Run(); // <-- Must be BEFORE the record definition
+
+// Put record(s) after app.Run()
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
-
-app.Run();
