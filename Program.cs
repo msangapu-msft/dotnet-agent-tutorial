@@ -1,3 +1,19 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+var builder = WebApplication.CreateBuilder(args);
+var app = builder.Build();
+
+// The summaries array must be defined before use!
+string[] summaries = new[]
+{
+    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
+};
+
+// Home page: Shows a friendly message.
 app.MapGet("/", () =>
     Results.Content(
         """
@@ -39,13 +55,12 @@ app.MapGet("/", () =>
             </div>
         </body>
         </html>
-        """, 
+        """,
         "text/html"
     )
 );
 
-
-
+// Weatherforecast endpoint (with memory leak in broken slot)
 app.MapGet("/weatherforecast", (HttpContext context) =>
 {
     // Check if we're in the "broken" slot by looking for "-broken" in the host name
@@ -71,3 +86,11 @@ app.MapGet("/weatherforecast", (HttpContext context) =>
     return forecast;
 })
 .WithName("GetWeatherForecast");
+
+// The WeatherForecast record must be defined
+record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
+{
+    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+}
+
+app.Run();
