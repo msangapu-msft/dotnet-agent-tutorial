@@ -1,152 +1,131 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using System;
-using System.Linq;
+using System.Collections.Generic;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
+// Weather data arrays
 string[] summaries = new[]
 {
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
 };
-
+string[] icons = new[]
+{
+    "❄️", "🌬️", "🌧️", "🌦️", "⛅", "🌤️", "🌞", "🔥", "🌡️", "☀️"
+};
 string[] quotes = new[]
 {
-    "Wherever you go, no matter what the weather, always bring your own sunshine. – Anthony J. D’Angelo",
-    "Sunshine is delicious, rain is refreshing, wind braces us up, snow is exhilarating. – John Ruskin",
-    "There’s no such thing as bad weather, only inappropriate clothing. – Alfred Wainwright",
-    "The sound of the rain needs no translation. – Alan Watts",
-    "To appreciate the beauty of a snowflake, it is necessary to stand out in the cold. – Aristotle",
-    "Some people feel the rain, others just get wet. – Bob Marley",
-    "After rain comes sunshine. – Proverb",
-    "Rain is grace; rain is the sky descending to the earth. – John Updike"
+    "Wherever you go, no matter what the weather, always bring your own sunshine. — Anthony J. D’Angelo",
+    "There is no such thing as bad weather, only different kinds of good weather. — John Ruskin",
+    "Sunshine is delicious, rain is refreshing, wind braces us up, snow is exhilarating. — John Ruskin",
+    "Some people feel the rain. Others just get wet. — Bob Marley",
+    "Climate is what we expect, weather is what we get. — Mark Twain",
+    "If you want to see the sunshine, you have to weather the storm. — Frank Lane"
 };
 
-// --- Root (/) serves the interactive app ---
-app.MapGet("/", (HttpContext context) =>
+app.MapGet("/", async context =>
 {
-    var rng = Random.Shared;
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            rng.Next(-20, 55),
-            summaries[rng.Next(summaries.Length)]
-        )).ToArray();
+    // Simulate memory exhaustion for the broken slot
+    var host = context.Request.Host.Host;
+    if (host.Contains("-broken", StringComparison.OrdinalIgnoreCase))
+    {
+        // Allocate a huge amount of memory to trigger MemoryError/HTTP 500
+        List<byte[]> memoryLeak = new();
+        for (int i = 0; i < 50_000; i++)
+        {
+            memoryLeak.Add(new byte[1024 * 1024]); // Allocate 1MB each (~50GB)
+        }
+    }
 
-    return Results.Content(
-        $$"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Weather Forecast</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>
-                body { font-family: 'Segoe UI', Arial, sans-serif; background: #f8fafc; margin: 0; padding: 0; }
-                .container { max-width: 540px; margin: 40px auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 24px #0002; padding: 24px; }
-                h2 { color: #2563eb; font-size: 2.2em; margin: 0 0 12px 0; }
-                .quote { font-style: italic; font-size: 1.13em; margin: 14px 0 26px 0; color: #475569; background: #f1f5f9; border-radius: 8px; padding: 10px 16px; }
-                .forecast-table { width: 100%; border-collapse: collapse; margin: 16px 0 0 0; }
-                .forecast-table th, .forecast-table td { padding: 12px; }
-                .forecast-table th { color: #64748b; background: #f3f4f6; font-weight: 500; }
-                .forecast-table tr:nth-child(even) { background: #f8fafc; }
-                .weather-emoji { font-size: 2em; }
-                .refresh-btn {
-                    background: #2563eb; color: #fff; border: none; border-radius: 7px;
-                    font-size: 1em; padding: 9px 23px; cursor: pointer; margin-top: 16px;
-                    box-shadow: 0 1px 6px #2563eb33; transition: background 0.15s;
-                }
-                .refresh-btn:hover { background: #1e40af; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h2>Weather Forecast</h2>
-                <div class="quote" id="quote"></div>
-                <table class="forecast-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Temp (°C)</th>
-                            <th>Summary</th>
-                            <th>🌡️</th>
-                        </tr>
-                    </thead>
-                    <tbody id="forecast-body">
-                        <!-- Filled by JS -->
-                    </tbody>
-                </table>
-                <button class="refresh-btn" onclick="reloadForecast()">🔄 Refresh</button>
-            </div>
-            <script>
-                const data = {{JsonSerializer.Serialize(forecast)}};
-                const summaries = {{JsonSerializer.Serialize(summaries)}};
-                const quotes = {{JsonSerializer.Serialize(quotes)}};
-                const weatherEmojis = {
-                    "Freezing": "❄️", "Bracing": "🌬️", "Chilly": "🥶",
-                    "Cool": "🧥", "Mild": "🌤️", "Warm": "🌞",
-                    "Balmy": "🌴", "Hot": "🔥", "Sweltering": "🥵", "Scorching": "🌡️"
-                };
+    // Choose random weather for initial page load
+    var rng = new Random();
+    int idx = rng.Next(summaries.Length);
+    int tempC = rng.Next(-10, 40);
+    string summary = summaries[idx];
+    string icon = icons[idx];
+    string quote = quotes[rng.Next(quotes.Length)];
 
-                function pickRandom(arr) {
-                    return arr[Math.floor(Math.random() * arr.length)];
-                }
-
-                function renderForecast() {
-                    let html = "";
-                    for (const d of data) {
-                        const emoji = weatherEmojis[d.summary] || "🌦️";
-                        html += `<tr>
-                            <td>${d.date}</td>
-                            <td>${d.temperatureC}</td>
-                            <td>${d.summary}</td>
-                            <td class="weather-emoji">${emoji}</td>
-                        </tr>`;
-                    }
-                    document.getElementById('forecast-body').innerHTML = html;
-                }
-
-                function setRandomQuote() {
-                    document.getElementById('quote').innerText = pickRandom(quotes);
-                }
-
-                function reloadForecast() {
-                    fetch("/weatherforecast/json")
-                        .then(r => r.json())
-                        .then(arr => {
-                            data.length = 0; // clear current
-                            arr.forEach(o => data.push(o));
-                            renderForecast();
-                            setRandomQuote();
-                        });
-                }
-
-                renderForecast();
-                setRandomQuote();
-            </script>
-        </body>
-        </html>
-        """,
-        "text/html"
-    );
-});
-
-// --- AJAX-only JSON endpoint for refresh ---
-app.MapGet("/weatherforecast/json", () =>
-{
-    var rng = Random.Shared;
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            rng.Next(-20, 55),
-            summaries[rng.Next(summaries.Length)]
-        )).ToArray();
-    return Results.Json(forecast);
+    // Write HTML + JS for interactivity
+    await context.Response.WriteAsync($@"
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fun .NET Weather Dashboard</title>
+    <style>
+        body {{
+            background: #f8fafc;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            text-align: center;
+            margin: 0; padding: 0;
+        }}
+        .container {{
+            margin-top: 80px;
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+            display: inline-block;
+            padding: 40px 36px 36px 36px;
+        }}
+        .weather-icon {{
+            font-size: 4.5em;
+        }}
+        .temp {{
+            font-size: 2.5em;
+            color: #2563eb;
+        }}
+        .summary {{
+            font-size: 1.5em;
+            margin-top: 8px;
+            color: #555;
+        }}
+        .quote {{
+            margin-top: 22px;
+            font-size: 1.2em;
+            color: #008080;
+        }}
+        button {{
+            margin-top: 30px;
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.2em;
+            padding: 12px 28px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }}
+        button:hover {{
+            background: #174bb3;
+        }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='weather-icon' id='icon'>{icon}</div>
+        <div class='temp'><span id='temp'>{tempC}</span>&deg;C</div>
+        <div class='summary' id='summary'>{summary}</div>
+        <div class='quote' id='quote'>{quote}</div>
+        <button onclick='refreshWeather()'>Refresh</button>
+    </div>
+    <script>
+        const summaries = {JsonSerializer.Serialize(summaries)};
+        const icons = {JsonSerializer.Serialize(icons)};
+        const quotes = {JsonSerializer.Serialize(quotes)};
+        function refreshWeather() {{
+            let idx = Math.floor(Math.random() * summaries.length);
+            let temp = Math.floor(Math.random() * 51) - 10; // -10 to 40
+            document.getElementById('icon').textContent = icons[idx];
+            document.getElementById('summary').textContent = summaries[idx];
+            document.getElementById('temp').textContent = temp;
+            document.getElementById('quote').textContent = quotes[Math.floor(Math.random() * quotes.length)];
+        }}
+    </script>
+</body>
+</html>
+    ");
 });
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary);
