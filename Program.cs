@@ -20,6 +20,7 @@ app.MapGet("/", () =>
         <!DOCTYPE html>
         <html>
         <head>
+            <meta charset="UTF-8">
             <title>Hello from .NET!</title>
             <style>
                 body {
@@ -38,9 +39,6 @@ app.MapGet("/", () =>
                     margin-bottom: 0.2em;
                     letter-spacing: 2px;
                 }
-                .emoji {
-                    font-size: 4em;
-                }
                 p {
                     color: #555;
                 }
@@ -48,7 +46,6 @@ app.MapGet("/", () =>
         </head>
         <body>
             <div class="container">
-                <div class="emoji">🚀🎉🌤️</div>
                 <h1>Hello, World!</h1>
                 <p>Your .NET app is running in Azure App Service.</p>
                 <p>Try the <a href="/weatherforecast">weatherforecast</a> endpoint for sample data.</p>
@@ -59,6 +56,7 @@ app.MapGet("/", () =>
         "text/html"
     )
 );
+
 
 // Weatherforecast endpoint (with memory leak in broken slot)
 app.MapGet("/weatherforecast", (HttpContext context) =>
