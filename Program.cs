@@ -32,11 +32,10 @@ app.MapGet("/", async context =>
     var host = context.Request.Host.Host;
     if (host.Contains("-broken", StringComparison.OrdinalIgnoreCase))
     {
-        // Allocate a huge amount of memory to trigger MemoryError/HTTP 500
         List<byte[]> memoryLeak = new();
         for (int i = 0; i < 50_000; i++)
         {
-            memoryLeak.Add(new byte[1024 * 1024]); // Allocate 1MB each (~50GB)
+            memoryLeak.Add(new byte[1024 * 1024]);
         }
     }
 
@@ -48,11 +47,15 @@ app.MapGet("/", async context =>
     string icon = icons[idx];
     string quote = quotes[rng.Next(quotes.Length)];
 
-    // Write HTML + JS for interactivity
+    // Set the Content-Type header to include UTF-8!
+    context.Response.ContentType = "text/html; charset=utf-8";
+
+    // Write HTML + JS for interactivity (with meta charset for full safety)
     await context.Response.WriteAsync($@"
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset='utf-8'>
     <title>Fun .NET Weather Dashboard</title>
     <style>
         body {{
