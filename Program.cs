@@ -84,7 +84,7 @@ app.MapGet("/", async context =>
 <body>
     <div class='container'>
         <div class='number' id='randNum'>{number}</div>
-        <button id='refreshBtn' onclick='window.location.reload()' disabled>Refresh</button>
+        <button id='refreshBtn' onclick='window.location.reload()' disabled>{buttonText}</button>
         {(isBrokenSlot ? "<div class='warning'>BROKEN SLOT: Simulating memory exhaustion!<br/>Page may crash.</div>" : "")}
         <div class='note'>Note: For the demo to work, your deployment slot <b>MUST</b> be named <code>broken</code>!</div>
     </div>
