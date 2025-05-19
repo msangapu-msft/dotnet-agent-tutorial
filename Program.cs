@@ -82,7 +82,7 @@ app.MapGet("/", async context =>
 <body>
     <div class='container'>
         <div class='number' id='randNum'>{number}</div>
-        <button id='refreshBtn' onclick='refreshNumber()' disabled>Refresh</button>
+        <button id='refreshBtn' onclick='window.location.reload()' disabled>Refresh</button>
         {(isBrokenSlot ? "<div class='warning'>BROKEN SLOT: Simulating memory exhaustion!<br/>Page may crash.</div>" : "")}
         <div class='note'>Note: For the demo to work, your deployment slot <b>MUST</b> be named <code>broken</code>!</div>
     </div>
@@ -90,11 +90,6 @@ app.MapGet("/", async context =>
         window.onload = () => {{
             document.getElementById('refreshBtn').disabled = false;
         }};
-        function refreshNumber() {{
-            // Pick a new random number (for demo, just use JS random, not secure)
-            let newNum = Math.floor(Math.random() * 10000) + 1;
-            document.getElementById('randNum').textContent = newNum;
-        }}
     </script>
 </body>
 </html>
