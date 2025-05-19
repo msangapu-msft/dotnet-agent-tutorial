@@ -8,8 +8,8 @@ var app = builder.Build();
 app.MapGet("/", async context =>
 {
     context.Response.ContentType = "text/html; charset=utf-8";
-    var host = context.Request.Host.Host;
-    bool isBrokenSlot = host.Contains("broken", StringComparison.OrdinalIgnoreCase);
+    // Use environment variable (app setting) for error injection
+    bool injectError = Environment.GetEnvironmentVariable("INJECT_ERROR") == "1";
     bool safeMode = context.Request.Query.ContainsKey("safe");
     bool buttonPressed = context.Request.Query.ContainsKey("crash");
 
@@ -29,19 +29,19 @@ app.MapGet("/", async context =>
     // Set the cookie for next round (expires in 1 hour)
     context.Response.Cookies.Append("crashCount", pressCount.ToString(), new CookieOptions { Expires = DateTimeOffset.Now.AddHours(1) });
 
-    // On broken slot, after 5 clicks, throw exception
-    if (isBrokenSlot && !safeMode && buttonPressed && pressCount > 5)
+    // If injectError is enabled, after 5 clicks, throw exception
+    if (injectError && !safeMode && buttonPressed && pressCount > 5)
     {
         throw new Exception("Simulated error after 5 button clicks!");
     }
 
     // Button color and label
-    string buttonColor = isBrokenSlot ? "#dc2626" : "#22c55e";
-    string buttonHover = isBrokenSlot ? "#b91c1c" : "#15803d";
-    string buttonText = isBrokenSlot ? "Throw Exception" : "Refresh";
+    string buttonColor = injectError ? "#dc2626" : "#22c55e";
+    string buttonHover = injectError ? "#b91c1c" : "#15803d";
+    string buttonText = injectError ? "Throw Exception" : "Refresh";
 
-    string warningText = isBrokenSlot
-        ? "<div class='warning'>BROKEN SLOT: Simulated error will occur after 5 clicks.<br/>This is for troubleshooting demos.</div>"
+    string warningText = injectError
+        ? "<div class='warning'>ERROR INJECTION ENABLED: Simulated error will occur after 5 clicks.<br/>This is for troubleshooting demos.</div>"
         : "";
 
     await context.Response.WriteAsync($@"
@@ -125,9 +125,9 @@ app.MapGet("/", async context =>
             <input type='hidden' name='safe' value='1' />
             <button class='safe-btn' type='submit'>Reset Counter</button>
         </form>
-        {(isBrokenSlot ? $"<div class='note'>Button clicked <b>{pressCount}</b> times (error on 6th click).</div>" : "")}
+        {(injectError ? $"<div class='note'>Button clicked <b>{pressCount}</b> times (error on 6th click).</div>" : "")}
         {warningText}
-        <div class='note'>Note: For the demo to work, your deployment slot <b>MUST</b> be named <code>broken</code>!</div>
+        <div class='note'>Note: For the demo to work, set app setting <b>INJECT_ERROR=1</b> on the slot you want to simulate errors!</div>
     </div>
 </body>
 </html>
