@@ -24,6 +24,20 @@ app.MapGet("/", async context =>
     string buttonHover = isBrokenSlot ? "#b91c1c" : "#15803d";   // Dark red or green
     string buttonText = isBrokenSlot ? "Throw Exception" : "Refresh";
 
+    // Simulate memory exhaustion for the broken slot (AFTER writing HTML!)
+    if (isBrokenSlot && !safeMode)
+    {
+        if (!hasWarmedUp)
+        {
+            hasWarmedUp = true; // allow warmup for slot swap
+        }
+        else
+        {
+            throw new Exception("Simulated memory exhaustion: Out of memory!"); // causes HTTP 500
+        }
+    }
+
+
     await context.Response.WriteAsync($@"
 <!DOCTYPE html>
 <html>
@@ -99,18 +113,7 @@ app.MapGet("/", async context =>
 
     await context.Response.Body.FlushAsync();
 
-    // Simulate memory exhaustion for the broken slot (AFTER writing HTML!)
-    if (isBrokenSlot && !safeMode)
-    {
-        if (!hasWarmedUp)
-        {
-            hasWarmedUp = true; // allow warmup for slot swap
-        }
-        else
-        {
-            throw new Exception("Simulated memory exhaustion: Out of memory!"); // causes HTTP 500
-        }
-    }
+
 }
 );
 
