@@ -13,6 +13,7 @@ app.MapGet("/", async context =>
     context.Response.ContentType = "text/html; charset=utf-8";
     var host = context.Request.Host.Host;
     bool isBrokenSlot = host.Contains("broken", StringComparison.OrdinalIgnoreCase);
+    bool safeMode = context.Request.Query.ContainsKey("safe");
 
     // Random number for initial page load
     var rng = new Random();
@@ -21,6 +22,7 @@ app.MapGet("/", async context =>
     // Button color based on slot
     string buttonColor = isBrokenSlot ? "#dc2626" : "#22c55e";   // Red or green
     string buttonHover = isBrokenSlot ? "#b91c1c" : "#15803d";   // Dark red or green
+    string buttonText = isBrokenSlot ? "Throw Exception" : "Refresh";
 
     await context.Response.WriteAsync($@"
 <!DOCTYPE html>
@@ -98,7 +100,7 @@ app.MapGet("/", async context =>
     await context.Response.Body.FlushAsync();
 
     // Simulate memory exhaustion for the broken slot (AFTER writing HTML!)
-    if (isBrokenSlot)
+    if (isBrokenSlot && !safeMode)
     {
         if (!hasWarmedUp)
         {
@@ -106,14 +108,8 @@ app.MapGet("/", async context =>
         }
         else
         {
-            // Stack overflow AND memory allocation
-            void CrashStack(int depth)
-            {
-                var waste = new byte[2 * 1024 * 1024]; // 2MB per frame
-                for (int i = 0; i < waste.Length; i += 4096) waste[i] = (byte)depth;
-                CrashStack(depth + 1);
-            }
-            CrashStack(0);
+            throw new Exception("Simulated memory exhaustion: Out of memory!"); // causes HTTP 500
+        }
         }
     }
 });
