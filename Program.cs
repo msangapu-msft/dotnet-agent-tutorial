@@ -1,33 +1,12 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using System;
-using System.Collections.Generic;
-using System.Text.Json;
 using System.Threading.Tasks;
 
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
-static bool hasWarmedUp = false; // <-- Static at top-level
-
-// Weather data arrays (unchanged)
-string[] summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-string[] icons = new[]
-{
-    "❄️", "🌬️", "🌧️", "🌦️", "⛅", "🌤️", "🌞", "🔥", "🌡️", "☀️"
-};
-string[] quotes = new[]
-{
-    "Wherever you go, no matter what the weather, always bring your own sunshine. — Anthony J. D’Angelo",
-    "There is no such thing as bad weather, only different kinds of good weather. — John Ruskin",
-    "Sunshine is delicious, rain is refreshing, wind braces us up, snow is exhilarating. — John Ruskin",
-    "Some people feel the rain. Others just get wet. — Bob Marley",
-    "Climate is what we expect, weather is what we get. — Mark Twain",
-    "If you want to see the sunshine, you have to weather the storm. — Frank Lane"
-};
+static bool hasWarmedUp = false; // For slot swap compatibility
 
 app.MapGet("/", async context =>
 {
@@ -35,21 +14,20 @@ app.MapGet("/", async context =>
     var host = context.Request.Host.Host;
     bool isBrokenSlot = host.Contains("broken", StringComparison.OrdinalIgnoreCase);
 
-    // Choose random weather for initial page load
+    // Random number for initial page load
     var rng = new Random();
-    int idx = rng.Next(summaries.Length);
-    int tempC = rng.Next(-10, 40);
-    string summary = summaries[idx];
-    string icon = icons[idx];
-    string quote = quotes[rng.Next(quotes.Length)];
+    int number = rng.Next(1, 10001); // 1 to 10000
 
-    // Start HTML
+    // Button color based on slot
+    string buttonColor = isBrokenSlot ? "#dc2626" : "#22c55e";   // Red or green
+    string buttonHover = isBrokenSlot ? "#b91c1c" : "#15803d";   // Dark red or green
+
     await context.Response.WriteAsync($@"
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset='utf-8'>
-    <title>Fun .NET Weather Dashboard</title>
+    <title>.NET Random Number Demo</title>
     <style>
         body {{
             background: #f8fafc;
@@ -65,22 +43,15 @@ app.MapGet("/", async context =>
             display: inline-block;
             padding: 40px 36px 36px 36px;
         }}
-        .weather-icon {{
-            font-size: 4.5em;
-        }}
-        .temp {{
-            font-size: 2.5em;
+        .number {{
+            font-size: 3.2em;
             color: #2563eb;
+            margin-bottom: 18px;
         }}
-        .summary {{
-            font-size: 1.5em;
-            margin-top: 8px;
-            color: #555;
-        }}
-        .quote {{
-            margin-top: 22px;
-            font-size: 1.2em;
-            color: #008080;
+        .note {{
+            margin-top: 12px;
+            color: #ad6800;
+            font-size: 1em;
         }}
         .warning {{
             margin-top: 30px;
@@ -88,14 +59,9 @@ app.MapGet("/", async context =>
             font-weight: bold;
             font-size: 1.3em;
         }}
-        .slotnote {{
-            margin-top: 12px;
-            color: #ad6800;
-            font-size: 1em;
-        }}
         button {{
             margin-top: 30px;
-            background: #2563eb;
+            background: {buttonColor};
             color: #fff;
             border: none;
             border-radius: 6px;
@@ -109,41 +75,31 @@ app.MapGet("/", async context =>
             cursor: not-allowed;
         }}
         button:hover:enabled {{
-            background: #174bb3;
+            background: {buttonHover};
         }}
     </style>
 </head>
 <body>
     <div class='container'>
-        <div class='weather-icon' id='icon'>{icon}</div>
-        <div class='temp'><span id='temp'>{tempC}</span>&deg;C</div>
-        <div class='summary' id='summary'>{summary}</div>
-        <div class='quote' id='quote'>{quote}</div>
-        <button id='refreshBtn' onclick='refreshWeather()' disabled>Refresh</button>
+        <div class='number' id='randNum'>{number}</div>
+        <button id='refreshBtn' onclick='refreshNumber()' disabled>Refresh</button>
         {(isBrokenSlot ? "<div class='warning'>BROKEN SLOT: Simulating memory exhaustion!<br/>Page may crash.</div>" : "")}
-        <div class='slotnote'>Note: For the demo to work, your deployment slot <b>MUST</b> be named <code>broken</code>!</div>
+        <div class='note'>Note: For the demo to work, your deployment slot <b>MUST</b> be named <code>broken</code>!</div>
     </div>
     <script>
         window.onload = () => {{
             document.getElementById('refreshBtn').disabled = false;
         }};
-        const summaries = {JsonSerializer.Serialize(summaries)};
-        const icons = {JsonSerializer.Serialize(icons)};
-        const quotes = {JsonSerializer.Serialize(quotes)};
-        function refreshWeather() {{
-            let idx = Math.floor(Math.random() * summaries.length);
-            let temp = Math.floor(Math.random() * 51) - 10; // -10 to 40
-            document.getElementById('icon').textContent = icons[idx];
-            document.getElementById('summary').textContent = summaries[idx];
-            document.getElementById('temp').textContent = temp;
-            document.getElementById('quote').textContent = quotes[Math.floor(Math.random() * quotes.length)];
+        function refreshNumber() {{
+            // Pick a new random number (for demo, just use JS random, not secure)
+            let newNum = Math.floor(Math.random() * 10000) + 1;
+            document.getElementById('randNum').textContent = newNum;
         }}
     </script>
 </body>
 </html>
     ");
 
-    // Flush response so user sees it before crash
     await context.Response.Body.FlushAsync();
 
     // Simulate memory exhaustion for the broken slot (AFTER writing HTML!)
@@ -158,14 +114,11 @@ app.MapGet("/", async context =>
             // Stack overflow AND memory allocation
             void CrashStack(int depth)
             {
-                // Allocate a big array in each frame
-                var waste = new byte[2 * 1024 * 1024]; // 2MB
-                // Fill so .NET can't optimize it away
+                var waste = new byte[2 * 1024 * 1024]; // 2MB per frame
                 for (int i = 0; i < waste.Length; i += 4096) waste[i] = (byte)depth;
-                CrashStack(depth + 1); // Recursion with depth
+                CrashStack(depth + 1);
             }
-            CrashStack(0); // Start crash!
-            // No code below will run
+            CrashStack(0);
         }
     }
 });
