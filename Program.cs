@@ -110,8 +110,8 @@ app.MapGet("/", async context =>
         {
             throw new Exception("Simulated memory exhaustion: Out of memory!"); // causes HTTP 500
         }
-        }
     }
+}
 );
 
 app.Run();
