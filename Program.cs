@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
-static bool hasWarmedUp = false; // For slot swap compatibility
+bool hasWarmedUp = false; // For slot swap compatibility
 
 app.MapGet("/", async context =>
 {
