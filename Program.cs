@@ -1,12 +1,9 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using System;
-using System.Threading.Tasks;
 
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
-
-bool hasWarmedUp = false; // For slot swap compatibility
 
 app.MapGet("/", async context =>
 {
@@ -14,36 +11,41 @@ app.MapGet("/", async context =>
     var host = context.Request.Host.Host;
     bool isBrokenSlot = host.Contains("broken", StringComparison.OrdinalIgnoreCase);
     bool safeMode = context.Request.Query.ContainsKey("safe");
+    bool buttonPressed = context.Request.Query.ContainsKey("crash");
 
-    // Random number for initial page load
-    var rng = new Random();
-    int number = rng.Next(1, 10001); // 1 to 10000
+    // Track button presses via cookie
+    int pressCount = 0;
+    if (context.Request.Cookies.TryGetValue("crashCount", out var cookieVal))
+        int.TryParse(cookieVal, out pressCount);
 
-    // Button color based on slot
-    string buttonColor = isBrokenSlot ? "#dc2626" : "#22c55e";   // Red or green
-    string buttonHover = isBrokenSlot ? "#b91c1c" : "#15803d";   // Dark red or green
-    string buttonText = isBrokenSlot ? "Throw Exception" : "Refresh";
+    // If the button was pressed, increment the count
+    if (buttonPressed)
+        pressCount++;
 
-    // Simulate memory exhaustion for the broken slot (AFTER writing HTML!)
-    if (isBrokenSlot && !safeMode)
+    // Set the cookie for next round (expires in 1 hour)
+    context.Response.Cookies.Append("crashCount", pressCount.ToString(), new CookieOptions { Expires = DateTimeOffset.Now.AddHours(1) });
+
+    // On broken slot, after 5 clicks, throw exception
+    if (isBrokenSlot && !safeMode && buttonPressed && pressCount > 5)
     {
-        if (!hasWarmedUp)
-        {
-            hasWarmedUp = true; // allow warmup for slot swap
-        }
-        else
-        {
-            throw new Exception("Simulated memory exhaustion: Out of memory!"); // causes HTTP 500
-        }
+        throw new Exception("Simulated error after 5 button clicks!");
     }
 
+    // Button color and label
+    string buttonColor = isBrokenSlot ? "#dc2626" : "#22c55e";
+    string buttonHover = isBrokenSlot ? "#b91c1c" : "#15803d";
+    string buttonText = isBrokenSlot ? "Throw Exception" : "Refresh";
+
+    string warningText = isBrokenSlot
+        ? "<div class='warning'>BROKEN SLOT: Simulated error will occur after 5 clicks.<br/>This is for troubleshooting demos.</div>"
+        : "";
 
     await context.Response.WriteAsync($@"
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset='utf-8'>
-    <title>.NET Random Number Demo</title>
+    <title>.NET Button Click Demo</title>
     <style>
         body {{
             background: #f8fafc;
@@ -97,24 +99,18 @@ app.MapGet("/", async context =>
 </head>
 <body>
     <div class='container'>
-        <div class='number' id='randNum'>{number}</div>
-        <button id='refreshBtn' onclick='window.location.reload()' disabled>{buttonText}</button>
-        {(isBrokenSlot ? "<div class='warning'>BROKEN SLOT: Simulating memory exhaustion!<br/>Page may crash.</div>" : "")}
+        <div class='number' id='counter'>{pressCount}</div>
+        <form method='GET'>
+            <input type='hidden' name='crash' value='1' />
+            <button id='refreshBtn' type='submit'>{buttonText}</button>
+        </form>
+        {(isBrokenSlot ? $"<div class='note'>Button clicked <b>{pressCount}</b> times (error on 6th click).</div>" : "")}
+        {warningText}
         <div class='note'>Note: For the demo to work, your deployment slot <b>MUST</b> be named <code>broken</code>!</div>
     </div>
-    <script>
-        window.onload = () => {{
-            document.getElementById('refreshBtn').disabled = false;
-        }};
-    </script>
 </body>
 </html>
     ");
-
-    await context.Response.Body.FlushAsync();
-
-
-}
-);
+});
 
 app.Run();
