@@ -18,8 +18,12 @@ app.MapGet("/", async context =>
     if (context.Request.Cookies.TryGetValue("crashCount", out var cookieVal))
         int.TryParse(cookieVal, out pressCount);
 
-    // If the button was pressed, increment the count
-    if (buttonPressed)
+    // Reset counter if safe=1
+    if (safeMode)
+        pressCount = 0;
+
+    // If the button was pressed and not in safe mode, increment the count
+    if (buttonPressed && !safeMode)
         pressCount++;
 
     // Set the cookie for next round (expires in 1 hour)
@@ -95,14 +99,31 @@ app.MapGet("/", async context =>
         button:hover:enabled {{
             background: {buttonHover};
         }}
+        .safe-btn {{
+            margin-top: 16px;
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            padding: 8px 22px;
+            cursor: pointer;
+        }}
+        .safe-btn:hover {{
+            background: #1e40af;
+        }}
     </style>
 </head>
 <body>
     <div class='container'>
         <div class='number' id='counter'>{pressCount}</div>
-        <form method='GET'>
+        <form method='GET' style='display:inline'>
             <input type='hidden' name='crash' value='1' />
             <button id='refreshBtn' type='submit'>{buttonText}</button>
+        </form>
+        <form method='GET' style='display:inline'>
+            <input type='hidden' name='safe' value='1' />
+            <button class='safe-btn' type='submit'>Reset Counter</button>
         </form>
         {(isBrokenSlot ? $"<div class='note'>Button clicked <b>{pressCount}</b> times (error on 6th click).</div>" : "")}
         {warningText}
