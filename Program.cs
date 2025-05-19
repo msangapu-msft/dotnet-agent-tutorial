@@ -8,7 +8,9 @@ using System.Threading.Tasks;
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
-// Weather data arrays
+static bool hasWarmedUp = false; // <-- Static at top-level
+
+// Weather data arrays (unchanged)
 string[] summaries = new[]
 {
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
@@ -102,7 +104,11 @@ app.MapGet("/", async context =>
             cursor: pointer;
             transition: background 0.2s;
         }}
-        button:hover {{
+        button:disabled {{
+            opacity: 0.5;
+            cursor: not-allowed;
+        }}
+        button:hover:enabled {{
             background: #174bb3;
         }}
     </style>
@@ -113,11 +119,14 @@ app.MapGet("/", async context =>
         <div class='temp'><span id='temp'>{tempC}</span>&deg;C</div>
         <div class='summary' id='summary'>{summary}</div>
         <div class='quote' id='quote'>{quote}</div>
-        <button onclick='refreshWeather()'>Refresh</button>
+        <button id='refreshBtn' onclick='refreshWeather()' disabled>Refresh</button>
         {(isBrokenSlot ? "<div class='warning'>BROKEN SLOT: Simulating memory exhaustion!<br/>Page may crash.</div>" : "")}
         <div class='slotnote'>Note: For the demo to work, your deployment slot <b>MUST</b> be named <code>broken</code>!</div>
     </div>
     <script>
+        window.onload = () => {{
+            document.getElementById('refreshBtn').disabled = false;
+        }};
         const summaries = {JsonSerializer.Serialize(summaries)};
         const icons = {JsonSerializer.Serialize(icons)};
         const quotes = {JsonSerializer.Serialize(quotes)};
@@ -140,12 +149,25 @@ app.MapGet("/", async context =>
     // Simulate memory exhaustion for the broken slot (AFTER writing HTML!)
     if (isBrokenSlot)
     {
-        void CrashStack() => CrashStack(); // Infinite recursion
-        if (isBrokenSlot) CrashStack();
+        if (!hasWarmedUp)
+        {
+            hasWarmedUp = true; // allow warmup for slot swap
+        }
+        else
+        {
+            // Stack overflow AND memory allocation
+            void CrashStack(int depth)
+            {
+                // Allocate a big array in each frame
+                var waste = new byte[2 * 1024 * 1024]; // 2MB
+                // Fill so .NET can't optimize it away
+                for (int i = 0; i < waste.Length; i += 4096) waste[i] = (byte)depth;
+                CrashStack(depth + 1); // Recursion with depth
+            }
+            CrashStack(0); // Start crash!
+            // No code below will run
+        }
     }
-
-    await context.Response.WriteAsync("<div style='color:green'>Memory bug did not work!</div>");
-    
 });
 
 app.Run();
